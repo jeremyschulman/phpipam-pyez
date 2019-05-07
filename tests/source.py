@@ -1,3 +1,3 @@
-from phpipampyez import phpIPAMClient
+from phpipampyez import PhpIpamClient
 
-client = phpIPAMClient(host='localhost', user='admin', password='admin123', app='jeremy')
+client = PhpIpamClient(host='localhost', user='jeremy', password='jeremy123', app='DNVR1')

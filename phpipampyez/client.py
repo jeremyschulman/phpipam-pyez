@@ -3,18 +3,6 @@ from collections import Callable
 from requests import Session
 
 
-device_params = """
-parameter	type	methods	description
-id	number	GET, PATCH, DELETE	Device identifier
-hostname	varchar	POST, PATCH	Device hostname
-ip_addr	varchar	POST, PATCH	Device ip address
-descriptuion	varchar	POST, PATCH	Device description
-sections	varchar	POST, PATCH	List of section id's device belongs to (e.g. 3;4;5)
-rack, rack_start, rack_size	varchar	POST, PATCH	Device rack index, start position and size in U
-location	varchar	POST, PATCH	Device location index
-"""
-
-
 class phpIPAMSection(object):
 
     def __init__(self, client, section_url):
@@ -28,16 +16,7 @@ class phpIPAMSection(object):
         got.raise_for_status()
         body = got.json()
 
-        if isinstance(key, str):
-            get_key = itemgetter(key)
-        elif isinstance(key, tuple):
-            get_key = itemgetter(*key)
-        elif isinstance(key, Callable):
-            get_key = key
-        else:
-            raise ValueError('key is not str|callable')
-
-        self.catalog = {get_key(item): item for item in body.get('data', {})}
+        self.catalog = self.client.index(list_of_dict=body.get('data', []), key=key)
 
     def touch(self, **kwargs):
         """
@@ -66,7 +45,6 @@ class phpIPAMSection(object):
         got = self.get(f"/{new_id}")
         self.delete(f"/{new_id}")
         return got.json()['data']
-
 
     def wipe(self):
         self.get_catalog('id')
@@ -103,7 +81,7 @@ class phpIPAMSection(object):
         """
         if item.startswith('_'):
             subsect_name = item[1:]
-            subsec = phpIPAMSection(client=self.client, section_url=self.base_url + f"/{subsect_name}")
+            subsec = phpIPAMSection(client=self.client, section_url=self.base_url + f"{subsect_name}/")
             setattr(self, item, subsec)
             return subsec
 
@@ -112,18 +90,18 @@ class phpIPAMSection(object):
         return decorate
 
 
-class phpIPAMClient(object):
+class PhpIpamClient(object):
     """
     Pythonic client for the phpIPAM system.
     """
-    def __init__(self, host, user, password, app, port=80):
+    def __init__(self, host, user, password, app):
         """
         Create as new client session and login.
 
         Parameters
         ----------
         host : str
-            The hostname/ipaddr of the phpIPAM server
+            The host URL to the phpIPAM server, for example "http://my-phpIPAM:8080"
 
         user : str
             The login user-name
@@ -134,13 +112,10 @@ class phpIPAMClient(object):
         app : str
             The login application name.  An API app must be defined within
             the phpIPAM system to access the API.
-
-        port : str
-            The host server port; defaults to 80
         """
         self.api = Session()
         self._api_auth = (user, password)
-        self.base_url = f"http://{host}:{port}/api/{app}"
+        self.base_url = f"{host}/api/{app}"
         self.login()
 
     def login(self):
@@ -149,7 +124,44 @@ class phpIPAMClient(object):
         token = got.json()['data']['token']
         self.api.headers['token'] = token
 
+    @staticmethod
+    def index(list_of_dict, key='id'):
+        """
+        This function will take a list of dictionaries and use the `key` value to create a dictionary
+        of keys whose value is the dict item.  The key can be in one of the following forms:
+
+            str - a single named item in the dictionary; by default 'id'
+
+            tuple - two or more string value that are used ot make the key.
+
+            callable - a user-defined callable function; this function would take as a single
+            argument the dictionary item; and return the key value.
+
+        Parameters
+        ----------
+        list_of_dict : list[dict]
+            A list of dictionaries to product the index
+
+        key : str|tuple|callable
+            As described above
+
+        Returns
+        -------
+        dict
+            The "index" dictionary as described above.
+        """
+        if isinstance(key, str):
+            get_key = itemgetter(key)
+        elif isinstance(key, tuple):
+            get_key = itemgetter(*key)
+        elif isinstance(key, Callable):
+            get_key = key
+        else:
+            raise ValueError('key is not str|callable')
+
+        return {get_key(item): item for item in list_of_dict}
+
     def __getattr__(self, item):
-        new_sec = phpIPAMSection(self, section_url=f"{self.base_url}/{item}")
+        new_sec = phpIPAMSection(self, section_url=f"{self.base_url}/{item}/")
         setattr(self, item, new_sec)
         return new_sec

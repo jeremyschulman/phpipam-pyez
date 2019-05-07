@@ -1,1 +1,2 @@
-from phpipampyez.client import phpIPAMClient
+from phpipampyez.client import PhpIpamClient
+
