@@ -1,0 +1,32 @@
+version: '2'
+
+services:
+  phpipam-db:
+    image: "mrlesmithjr/mysql:latest"
+    volumes:
+      - "phpipam-db:/var/lib/mysql"
+    restart: "always"
+    environment:
+      MYSQL_ROOT_PASSWORD: "phpipam"
+      MYSQL_DATABASE: "phpipam"
+      MYSQL_USER: "phpipam"
+      MYSQL_PASSWORD: "phpipam"
+
+  phpipam-web:
+    depends_on:
+      - phpipam-db
+    image: "mrlesmithjr/phpipam:latest"
+    links:
+      - "phpipam-db"
+    ports:
+      - "8000:80"
+    restart: "always"
+    environment:
+      APACHE2_ENABLE_PHP: "true"
+      PHPIPAM_DB_HOST: "phpipam-db"
+      PHPIPAM_DB_NAME: "phpipam"
+      PHPIPAM_DB_PASS: "phpipam"
+      PHPIPAM_DB_USER: "phpipam"
+
+volumes:
+  phpipam-db:
