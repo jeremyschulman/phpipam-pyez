@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  jupyternb:
+    image: jupyter/minimal-notebook
+    env_file:
+      - "$HOME/.phpipam.env"
+    ports:
+      - "8888:8888"
+    volumes:
+      - "$PWD:/phpipam-pyez"
+    command: start.sh jupyter lab --LabApp.token=''
